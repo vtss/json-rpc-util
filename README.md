@@ -136,10 +136,10 @@ port events to the web-server at 10.99.10.1:5000:
 At 10.99.10.1, this web server can now be started using the `listen`
 application, and it will print notifications when they are received.
 
-   $ ./listen -p 5000
-   10.99.10.2/:         port.status.interface.update             modify     Gi 1/4 -> {"Link"=>false, "Fdx"=>true, "Fiber"=>false, "Speed"=>"speed1G", "SFPType"=>"none", "SFPVendorName"=>"", "SFPVendorPN"=>"", "SFPVendorRev"=>"", "LossOfSignal"=>true, "TxFault"=>true, "Present"=>false}
-   10.99.10.2/:         port.status.interface.update             modify     Gi 1/3 -> {"Link"=>false, "Fdx"=>true, "Fiber"=>false, "Speed"=>"speed1G", "SFPType"=>"none", "SFPVendorName"=>"", "SFPVendorPN"=>"", "SFPVendorRev"=>"", "LossOfSignal"=>true, "TxFault"=>true, "Present"=>false}
-   10.99.10.2/:         port.status.interface.update             modify     Gi 1/4 -> {"Link"=>true, "Fdx"=>true, "Fiber"=>false, "Speed"=>"speed1G", "SFPType"=>"none", "SFPVendorName"=>"", "SFPVendorPN"=>"", "SFPVendorRev"=>"", "LossOfSignal"=>true, "TxFault"=>true, "Present"=>false}
-   10.99.10.2/:         port.status.interface.update             modify     Gi 1/3 -> {"Link"=>true, "Fdx"=>true, "Fiber"=>false, "Speed"=>"speed1G", "SFPType"=>"none", "SFPVendorName"=>"", "SFPVendorPN"=>"", "SFPVendorRev"=>"", "LossOfSignal"=>true, "TxFault"=>true, "Present"=>false}
+    $ ./listen -p 5000
+    10.99.10.2/:         port.status.interface.update             modify     Gi 1/4 -> {"Link"=>false, "Fdx"=>true, "Fiber"=>false, "Speed"=>"speed1G", "SFPType"=>"none", "SFPVendorName"=>"", "SFPVendorPN"=>"", "SFPVendorRev"=>"", "LossOfSignal"=>true, "TxFault"=>true, "Present"=>false}
+    10.99.10.2/:         port.status.interface.update             modify     Gi 1/3 -> {"Link"=>false, "Fdx"=>true, "Fiber"=>false, "Speed"=>"speed1G", "SFPType"=>"none", "SFPVendorName"=>"", "SFPVendorPN"=>"", "SFPVendorRev"=>"", "LossOfSignal"=>true, "TxFault"=>true, "Present"=>false}
+    10.99.10.2/:         port.status.interface.update             modify     Gi 1/4 -> {"Link"=>true, "Fdx"=>true, "Fiber"=>false, "Speed"=>"speed1G", "SFPType"=>"none", "SFPVendorName"=>"", "SFPVendorPN"=>"", "SFPVendorRev"=>"", "LossOfSignal"=>true, "TxFault"=>true, "Present"=>false}
+    10.99.10.2/:         port.status.interface.update             modify     Gi 1/3 -> {"Link"=>true, "Fdx"=>true, "Fiber"=>false, "Speed"=>"speed1G", "SFPType"=>"none", "SFPVendorName"=>"", "SFPVendorPN"=>"", "SFPVendorRev"=>"", "LossOfSignal"=>true, "TxFault"=>true, "Present"=>false}
 
 
