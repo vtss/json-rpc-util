@@ -1,0 +1,70 @@
+#!/bin/env ruby
+
+require 'pp'
+require 'json'
+require 'webrick'
+require 'optparse'
+
+options = {}
+OptionParser.new do |opts|
+    opts.banner = "Usage: listen -p <port>"
+
+    opts.on("-p", "--port PORT", "TCP port to listen on") do |v|
+        options[:port] = v.to_i
+    end
+
+    opts.on_tail("-h", "--help", "Show this message") do
+        puts opts
+        exit
+    end
+end.parse!
+
+if options[:port].nil?
+    puts "A port number to listen on must be provided"
+    exit
+end
+
+begin
+    access_log = [ ]
+    log = WEBrick::BasicLog.new nil, WEBrick::BasicLog::ERROR
+    server = WEBrick::HTTPServer.new :DoNotReverseLookup => true, :Port => options[:port], :Logger => log, :AccessLog => access_log
+rescue Exception => ex
+    puts "#{ex.message}"
+    exit
+end
+
+server.mount_proc '/' do |req, res|
+    if req.request_method == "POST"
+        id_s = "%-20s" % ["#{req.remote_ip()}#{req.path}:"]
+        #puts "%-20s %s" % ["#{req.remote_ip()}#{req.path}:", req.body]
+
+        update = nil
+        begin
+            update = JSON.parse(req.body)
+        rescue Exception => ex
+            puts "#{id_s} JSON parse error #{ex.message}"
+            return
+        end
+        m = "%-40s" % [update["method"]]
+
+        update["params"].each do |e|
+            t = "%-10s" % [e["event-type"]]
+            k = e["key"]
+            v = e["val"]
+
+            if e["event-type"] == "delete"
+                puts "#{id_s} #{m} #{t} #{k}"
+            else
+                puts "#{id_s} #{m} #{t} #{k} -> #{v}"
+            end
+        end
+
+    else
+        puts "Error messages must be posted!"
+    end
+end
+
+trap 'INT' do server.shutdown end
+
+server.start
+

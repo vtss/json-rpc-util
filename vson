@@ -1,0 +1,613 @@
+#!/usr/bin/env ruby
+
+require 'net/http'
+require 'uri'
+require 'json'
+require 'optparse'
+
+$dut = nil
+$dut_user = "admin"
+$dut_pass = ""
+$spec_file = nil
+
+class ArrayCollaps
+    def initialize
+        @s = ""
+    end
+
+    def push_range
+        if @a.nil? or @b.nil?
+            return
+        end
+
+        if @s.size != 0
+            @s << ", "
+        end
+
+        if (@a != @b)
+            @s << "#{@a}-#{@b}"
+        else
+            @s << "#{@a}"
+        end
+    end
+
+    def add val
+        if @a.nil? or @b.nil?
+            @a = val
+            @b = val
+            return
+        end
+
+        if @b + 1 == val
+            @b = val
+            return
+        else
+            push_range
+            @a = val
+            @b = val
+        end
+    end
+
+    def str
+        push_range
+        tmp = @s
+        @a = @b = nil
+        @s = ""
+        return "[#{tmp}]"
+    end
+end
+
+def print_table2 t
+    t.each do |row|
+        row.each do |key, val|
+            if val.class == Hash
+                val.each do |k, v|
+                    puts "#{k}: #{v}"
+                end
+            else
+                puts "#{key}: #{val}"
+            end
+        end
+        puts ""
+    end
+
+end
+
+def print_table t
+    if t.empty?
+        puts "    [empty-table]"
+        return
+    end
+
+    size = {}
+    t.each do |row|
+        old_max = 0
+        row.each do |key, val|
+            if val.class == Hash
+                val.each do |k, v|
+                    old_max = size[k.to_s] if not size[k.to_s].nil?
+                    size[k.to_s] = [v.to_s.size, k.to_s.size, old_max].max
+                end
+            else
+                old_max = size[key.to_s] if not size[key.to_s].nil?
+                size[key.to_s] = [val.to_s.size, key.to_s.size, old_max].max
+            end
+        end
+    end
+
+    sum = 0
+    size.each do |k, v|
+        sum += v
+    end
+
+    if sum > 200
+        print_table2 t
+        return
+    end
+
+    line = "    "
+    size.each do |k, v|
+        line += "%-#{v}s " % [k]
+    end
+    puts line
+
+    line = "    "
+    size.each do |k, v|
+        v.times do |x|
+            line << "-"
+        end
+        line << " "
+    end
+    puts line
+
+    t.each do |row|
+        line = "    "
+
+        row.each do |key, val|
+            if val.class == Hash
+                val.each do |k, v|
+                    line += "%#{size[k]}s " % [v]
+                end
+            else
+                line += "%#{size[key]}s " % [val]
+            end
+        end
+        puts line
+    end
+end
+
+def print_hash m
+    max_key_size = 0
+    max_val_size = 0
+
+    m.each do |k, v|
+        max_key_size = [k.to_s.size, max_key_size].max
+        max_val_size = [v.to_s.size, max_val_size].max
+    end
+
+    m.each do |k, v|
+        puts "    #{"%-#{max_key_size + 1}s" % "#{k.to_s}:"} #{"%#{max_val_size}s"%[v]}"
+    end
+end
+
+def stringify x
+    if x.class == Array
+        types = x.collect{|e| e.class}
+        types.uniq!
+
+        if types.size != 1
+            return "[#{x.join(", ")}]"
+        end
+
+        if types[0] == Fixnum
+            r = ArrayCollaps.new
+            x.each do |e|
+                r.add e
+            end
+            return r.str
+        end
+
+        return "[#{x.join(", ")}]"
+    end
+
+    return x.to_s
+end
+
+def stringify_key x
+    if x.class == Array
+        types = x.collect{|e| e.class}
+        types.uniq!
+
+        if types.size != 1
+            return "[#{x.join(", ")}]"
+        end
+
+        return "[#{x.join(", ")}]"
+    end
+
+    return x.to_s
+end
+
+def stringify_table x
+    x.each_index do |row|
+        x[row].each do |key, val|
+            if val.class == Hash
+                val.each do |k, v|
+                    x[row][key][k] = stringify(v)
+                end
+            else
+                x[row][key] = stringify_key(val)
+            end
+        end
+    end
+
+    return x
+end
+
+def stringify_hash x
+    x.each do |k, v|
+        x[k] = stringify v
+    end
+    return x
+end
+
+def print x
+    if x.class == Array
+        x = stringify_table x
+        print_table x
+    elsif x.class == Hash
+        x = stringify_hash x
+        print_hash x
+    else
+        puts(stringify(x))
+    end
+end
+
+def http_post_request body
+    http = Net::HTTP.start($dut, 80)
+    request = Net::HTTP::Post.new("/json_rpc")
+    request.basic_auth $dut_user, $dut_pass
+    request.content_type = 'application/json'
+    request.body = body
+    http.request(request).body
+end
+
+def download_spec host
+    puts "Downloading spec file"
+    http = Net::HTTP.start($dut, 80)
+    request = Net::HTTP::Get.new("/json_spec")
+    request.basic_auth $dut_user, $dut_pass
+    request.content_type = 'application/json'
+    return JSON.parse(http.request(request).body)
+end
+
+def get_spec args
+    if $spec_file.nil?
+        return download_spec $dut
+    else
+        return JSON.parse(File.read(File.expand_path($spec_file)))
+    end
+end
+
+def cmd_grep args
+    spec = get_spec args
+
+    #spec["types"].each do |e|
+    #    if not e["type-name"].match(args[:pattern]).nil?
+    #        puts e
+    #    end
+    #end
+
+    spec["methods"].each do |e|
+        if not e["method-name"].match(args[:pattern]).nil?
+            puts e["method-name"]
+        end
+    end
+
+end
+
+def cmd_update_spec args
+    spec = download_spec $dut
+    File.open(File.expand_path($spec_file), "w") do |f|
+          f.write(JSON.pretty_generate(spec))
+    end
+end
+
+def parse_arg type, val
+    encode = nil
+
+    if not type["encoding-type"].nil?
+        encode = type["encoding-type"]
+    end
+
+    if not type["json-encoding-type"].nil?
+        encode = type["json-encoding-type"]
+    end
+
+    raise "Can not determinate encoding type" if encode.nil?
+
+    case encode
+    when "String"
+        return val.to_s
+    when "Number"
+        return val.to_i
+    else
+        puts val
+        return JSON.parse(val)
+    end
+end
+
+def cmd_call args
+    spec = get_spec args
+
+    m = nil
+    spec["methods"].each do |e|
+        if e["method-name"] == args[:method]
+            m = e
+            break
+        end
+    end
+    types = {}
+    spec["types"].each do |e|
+        types[e["type-name"]] = e
+    end
+
+    if m.nil?
+        puts "No such method found in the spec. Method name: #{args[:method]}"
+    end
+
+    method = args[:method]
+    params = []
+
+    #todo...
+    if args[:args].size != 0
+        if m["params"].size != args[:args].size
+            puts "Wrong number of arguments! Got #{args[:args].size} expected #{m["params"].size}"
+            exit
+        end
+
+        m["params"].each do |p|
+            params << parse_arg(types[p["type"]], args[:args].shift)
+        end
+    end
+
+
+    puts "Calling #{method}:"
+    post_body = {'method' => args[:method], 'params' => params, 'id' => 'jsonrpc'}.to_json
+
+    if args[:dump_req]
+        puts "  Post-body: #{post_body}"
+    end
+
+    resp_txt = nil
+    begin
+        resp_txt = http_post_request(post_body)
+    rescue Exception => e
+        puts "Error: #{method} #{e.message}"
+        puts "    Post body: #{post_body}"
+        raise e
+    end
+    if args[:dump_res]
+        puts "  Post-body: #{resp_txt}"
+    end
+
+    begin
+        resp = JSON.parse(resp_txt)
+    rescue Exception => e
+        puts "Parse error: #{method} #{e.message}"
+        puts "    Response body: #{resp_txt}"
+        raise e
+    end
+
+    if args[:pretty]
+        begin
+            raise JSONRPCError, resp['error'] if resp['error']
+            print resp['result']
+            puts ""
+
+        rescue Exception => e
+            puts "Failed to call #{method} #{e.message}"
+            puts "    Response body: #{resp_txt}"
+            puts
+            return nil
+        end
+    end
+end
+
+def cmd_spec args
+    spec = get_spec args
+
+    m = nil
+    spec["methods"].each do |e|
+        if e["method-name"] == args[:method]
+            m = e
+            break
+        end
+    end
+
+    if m.nil?
+        puts "No such method found in the spec. Method name: #{args[:method]}"
+    end
+
+    puts "Method name:\n  #{m["method-name"]}\n"
+    types = {}
+    spec["types"].each do |e|
+        types[e["type-name"]] = e
+    end
+
+    method = args[:method]
+
+    cnt = 0
+    puts "Parameters:"
+    m["params"].each do |p|
+        puts "  Param \##{cnt} #{p}"
+        puts "           #{types[p["type"]]}"
+        cnt += 1
+    end
+    puts ""
+
+    cnt = 0
+    puts "Results:"
+    m["result"].each do |p|
+        puts "  Result \##{cnt} #{p}"
+        puts "            #{types[p["type"]]}"
+        cnt += 1
+    end
+    puts ""
+end
+
+global = OptionParser.new do |opts|
+    opts.banner = """Usage: vson [common-options] <command> [<args>]"""
+    opts.separator ""
+    opts.separator "Common-options:"
+
+    opts.on("-d", "--dut ADDRESS", "Hostname or IP address of the DUT") do |a|
+        $dut = a
+    end
+
+    opts.on("-u", "--dut-username USER", "Username for the HTTP session") do |a|
+        $dut_user = a
+    end
+
+    opts.on("-p", "--dut-password PASS", "Password for the HTTP session") do |a|
+        $dut_pass = a
+    end
+
+    opts.on("--spec-cache=[SPEC-FILE]", "Use a cached spec file. If no file is specified it will try use ~/.vtss-json-rpc.spec") do |s|
+        if s.nil?
+            $spec_file = "~/.vtss-json-rpc.spec"
+        else
+            $spec_file = s
+        end
+    end
+
+    opts.on("-c", "Use ~/.vtss-json-rpc.spec as cached spec file") do |s|
+        $spec_file = "~/.vtss-json-rpc.spec"
+    end
+
+
+    opts.on("-h", "--help", "Show this message") do
+        puts opts
+        exit
+    end
+
+    opts.separator ""
+    opts.separator """Commands:
+  call         Call a json RPC function on target using the spec file.
+  update-spec  Download the newest spec file from the target, and save it as a cache.
+  spec         Inspect the spec file.
+  grep         List type and methods who's name matches the pattern."""
+end
+
+global.order!
+
+if ARGV.size == 0
+  puts "No command specified!"
+  puts
+  puts global
+  exit
+end
+
+$cmd = ARGV.shift
+case $cmd
+when "call"
+    args = {}
+    args[:dump_req] = false
+    args[:dump_res] = false
+    args[:pretty] = true
+    call_opts = OptionParser.new do |opts|
+        opts.banner = """Usage: vson call [Options] <method> [<args>]"""
+        opts.separator ""
+        opts.separator "Options:"
+
+        opts.on("--dump-requests", "Dump the raw requests") do
+            args[:dump_req] = true
+        end
+
+        opts.on("--dump-response", "Dump the raw response") do
+            args[:dump_res] = true
+        end
+
+        opts.on("--no-pretty-print", "Disable pretty printing the responses") do
+            args[:pretty] = false
+        end
+
+        opts.on("-h", "--help", "Show this message") do
+            puts opts
+            exit
+        end
+
+        opts.separator ""
+        opts.separator "Method: this is the json-rpc method to call."
+    end
+    call_opts.order!
+
+    if ARGV.size == 0
+        puts "No method name"
+        exit
+    end
+
+    if $dut.nil?
+        puts "No dut address!"
+        exit
+    end
+
+    args[:method] = ARGV.shift
+    args[:args] = ARGV
+    cmd_call args
+    exit
+
+when "spec"
+    args = {}
+    call_opts = OptionParser.new do |opts|
+        opts.banner = """Usage: vson spec [Options] <method>"""
+        opts.separator ""
+        opts.separator "Options:"
+
+        opts.on("-h", "--help", "Show this message") do
+            puts opts
+            exit
+        end
+
+        opts.separator ""
+        opts.separator "Method: this is the json-rpc method to call."
+    end
+    call_opts.order!
+
+    if ARGV.size == 0
+        puts "No method name"
+        exit
+    end
+
+    if $dut.nil? and $spec_file.nil?
+        puts "No dut address and no cached spec file!"
+        exit
+    end
+
+    args[:method] = ARGV.shift
+    cmd_spec args
+    exit
+
+when "update-spec"
+    args = {}
+    call_opts = OptionParser.new do |opts|
+        opts.banner = """Usage: vson update-spec [Options]"""
+        opts.separator ""
+        opts.separator "Options:"
+
+        opts.on("-h", "--help", "Show this message") do
+            puts opts
+            exit
+        end
+    end
+    call_opts.order!
+
+    if $dut.nil?
+        puts "No dut address!"
+        exit
+    end
+
+    if $spec_file.nil?
+        puts "A spec file is required!"
+        exit
+    end
+
+    cmd_update_spec args
+    exit
+
+when "grep"
+    args = {}
+    call_opts = OptionParser.new do |opts|
+        opts.banner = """Usage: vson grep [Options] <pattern>"""
+        opts.separator ""
+        opts.separator "List type and methods who's name matches the pattern"
+        opts.separator ""
+        opts.separator "Options:"
+
+        opts.on("-h", "--help", "Show this message") do
+            puts opts
+            exit
+        end
+    end
+    call_opts.order!
+
+    if ARGV.size == 0
+        puts "No pattern"
+        exit
+    end
+
+    if $dut.nil? and $spec_file.nil?
+        puts "No dut address and no cached spec file!"
+        exit
+    end
+
+    args[:pattern] = ARGV.shift
+    args[:args] = ARGV
+    cmd_grep args
+    exit
+
+else
+    puts "Invalid command: #{$cmd}"
+    exit
+end
+
