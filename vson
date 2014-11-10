@@ -212,14 +212,18 @@ def stringify_hash x
 end
 
 def print x
-    if x.class == Array
-        x = stringify_table x
-        print_table x
-    elsif x.class == Hash
-        x = stringify_hash x
-        print_hash x
-    else
-        puts(stringify(x))
+    begin
+        if x.class == Array
+            x = stringify_table x
+            print_table x
+        elsif x.class == Hash
+            x = stringify_hash x
+            print_hash x
+        else
+            puts(stringify(x))
+        end
+    rescue  Exception => e
+        puts JSON.pretty_generate(x)
     end
 end
 
@@ -363,6 +367,7 @@ def cmd_call args
         begin
             raise JSONRPCError, resp['error'] if resp['error']
             print resp['result']
+
             puts ""
 
         rescue Exception => e
