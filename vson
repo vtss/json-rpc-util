@@ -295,6 +295,10 @@ def parse_arg type, val
         return val.to_s
     when "Number"
         return val.to_i
+    when "Boolean"
+         return true if val == "true"
+         return false if val == "false"
+         raise ArgumentError.new("Invalid value for Boolean: \"#{val}\"")
     else
         puts val
         return JSON.parse(val)
