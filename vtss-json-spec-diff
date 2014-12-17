@@ -1,0 +1,220 @@
+#!/usr/bin/env ruby
+
+require 'json'
+require 'optparse'
+
+ignore_description = false
+call_opts = OptionParser.new do |opts|
+    opts.banner = """Usage: vtss-json-spec-diff [Options] <new> <old>"""
+    opts.separator ""
+    opts.separator "Compare two vtss-json-spec, and print the changes"
+    opts.separator ""
+    opts.separator "Options:"
+
+    opts.on("-h", "--help", "Show this message") do
+        puts opts
+        exit
+    end
+    opts.on("-d", "--ignore-description", "Suppress changes in description fields") do
+        ignore_description = true
+    end
+end
+
+call_opts.parse!
+
+if ARGV.size != 2
+    puts call_opts
+    exit
+end
+
+a = JSON.parse(File.read(File.expand_path(ARGV[0])))
+b = JSON.parse(File.read(File.expand_path(ARGV[1])))
+
+def delete_all_descriptions x
+    if not x["types"].nil?
+        x["types"].each do |e|
+            e["description"] = ""
+
+            if not e["elements"].nil?
+                e["elements"].each do |ee|
+                    ee["description"] = ""
+                end
+            end
+        end
+    end
+    if not x["groups"].nil?
+        x["groups"].each do |e|
+            e["description"] = ""
+        end
+    end
+    if not x["methods"].nil?
+        x["methods"].each do |e|
+            e["description"] = ""
+            if not e["params"].nil?
+                e["params"].each do |ee|
+                    ee["description"] = ""
+                end
+            end
+            if not e["result"].nil?
+                e["result"].each do |ee|
+                    ee["description"] = ""
+                end
+            end
+        end
+    end
+end
+
+if ignore_description
+    delete_all_descriptions a
+    delete_all_descriptions b
+end
+
+if a == b
+    exit 0
+end
+
+def cmp_keys a, b, pre, post
+    d = a - b
+    d.each do |e|
+        puts "#{pre}#{e}: #{post} added"
+    end
+
+    d = b - a
+    d.each do |e|
+        puts "#{pre}#{e}: #{post} deleted"
+    end
+end
+
+def cmp_types a, b
+    if a == b
+        return
+    end
+
+    puts "    #{a["type-name"]}: Changed"
+
+    stop = false
+    if a["description"] != b["description"]
+        puts "      #{a["type-name"]}: description changed"
+    end
+
+    if a["class"] != b["class"]
+        stop = true
+        puts "      #{a["type-name"]}: class changed"
+    end
+
+    if a["json-encoding-type"] != b["json-encoding-type"]
+        stop = true
+        puts "      #{a["type-name"]}: json-encoding-type changed"
+    end
+
+    if stop
+        return
+    end
+
+    a_elements = {}
+    b_elements = {}
+    a["elements"].each {|e| a_elements[e["name"]] = e }
+    b["elements"].each {|e| b_elements[e["name"]] = e }
+
+    if a["class"] == "Struct" or a["class"] == "Enum"
+        cmp_keys(a_elements.keys, b_elements.keys, "      ", "Element")
+    end
+
+    if a["class"] == "Struct"
+        d = a_elements.keys & b_elements.keys
+        d.each do |e|
+            if a_elements[e] != b_elements[e]
+                puts "      #{e}: changed"
+                if a_elements[e]["type"] != b_elements[e]["type"]
+                    puts "        type: #{b_elements[e]["type"]} -> #{a_elements[e]["type"]}"
+                end
+                if a_elements[e]["description"] != b_elements[e]["description"]
+                    puts "        description: changed!"
+                end
+            end
+        end
+    end
+
+    if a["class"] == "Enum"
+        d = a_elements.keys & b_elements.keys
+        d.each do |e|
+            if a_elements[e] != b_elements[e]
+                puts "      #{e}: changed"
+                if a_elements[e]["value"] != b_elements[e]["value"]
+                    puts "        value: #{b_elements[e]["value"]} -> #{a_elements[e]["value"]}"
+                end
+            end
+        end
+    end
+end
+
+def cmp_groups a, b
+    if a == b
+        return
+    end
+
+    puts "    #{a["group-name"]}: Changed"
+    puts "        description: changed"
+end
+
+def cmp_methods a, b
+    if a == b
+        return
+    end
+
+    puts "    #{a["method-name"]}: Changed"
+    if a["group-name"] != b["group-name"]
+        puts "      group-name: #{b["method-name"]} -> #{a["method-name"]}"
+    end
+    if a["params"] != b["params"]
+        puts "      params: Changed"
+    end
+    if a["result"] != b["result"]
+        puts "      result: Changed"
+    end
+end
+
+a_types = {}
+b_types = {}
+a["types"].each { |e| a_types[e["type-name"]] = e; }
+b["types"].each { |e| b_types[e["type-name"]] = e; }
+
+a_groups = {}
+b_groups = {}
+a["groups"].each { |e| a_groups[e["group-name"]] = e; }
+b["groups"].each { |e| b_groups[e["group-name"]] = e; }
+
+a_methods = {}
+b_methods = {}
+a["methods"].each { |e| a_groups[e["method-name"]] = e; }
+b["methods"].each { |e| b_groups[e["method-name"]] = e; }
+
+puts "#{ARGV[0]} and #{ARGV[1]} differs"
+
+if a_types != b_types
+    puts "  Type set differs"
+    cmp_keys(a_types.keys, b_types.keys, "    ", "Type")
+    s = a_types.keys & b_types.keys
+    s.each do |e|
+        cmp_types a_types[e], b_types[e]
+    end
+end
+
+if a_groups != b_groups
+    puts "  Group set differs"
+    cmp_keys(a_groups.keys, b_groups.keys, "    ", "Group")
+    s = a_groups.keys & b_groups.keys
+    s.each do |e|
+        cmp_groups a_groups[e], b_groups[e]
+    end
+end
+
+if a_methods != b_methods
+    puts "  Method set differs"
+    cmp_keys(a_methods.keys, b_methods.keys, "    ", "Method")
+    s = a_methods.keys & b_methods.keys
+    s.each do |e|
+        cmp_methods a_methods[e], b_methods[e]
+    end
+end
+
