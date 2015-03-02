@@ -57,8 +57,6 @@ Examples of usage:
     $ ./vson -c grep port.status
     port.status.veriphy.result.get
     port.status.veriphy.result.get
-    port.status.interface.get
-    port.status.interface.get
     port.status.get
     port.status.get
     synce.status.ports.port-status.get
@@ -129,7 +127,7 @@ port events to the web-server at 10.99.10.1:5000:
     (config)# json notification host h1
     (config-json-noti-host)# url http://10.99.10.1:5000
     (config-json-noti-host)# exit
-    (config)# json notification listen port.status.interface.update h1
+    (config)# json notification listen port.status.update h1
     (config)# end
     #
 
