@@ -1,0 +1,6 @@
+[submodule "client-library-proof-of-concept/jsoncpp"]
+	path = client-library-proof-of-concept/jsoncpp
+	url = https://github.com/open-source-parsers/jsoncpp.git
+[submodule "client-library-proof-of-concept/restclient-cpp"]
+	path = client-library-proof-of-concept/restclient-cpp
+	url = https://github.com/mrtazz/restclient-cpp.git
