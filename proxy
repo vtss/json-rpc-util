@@ -86,12 +86,12 @@ def forward req, res
         raise "Not implemented"
     end
 
-    http = Net::HTTP.new("10.99.10.10", 80)
+    http = Net::HTTP.new($options[:dut], 80)
     r.basic_auth 'admin', ''
     response = http.request(r);
 
     if response['www-authenticate']
-        uri = URI.parse "http://10.99.10.10#{r.path}"
+        uri = URI.parse "http://#{$options[:dut]}#{r.path}"
         uri.user = 'admin'
         uri.password = ''
         digest_auth = Net::HTTP::DigestAuth.new
