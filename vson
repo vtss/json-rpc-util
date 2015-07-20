@@ -259,7 +259,7 @@ def download_spec host
     resp = http.request(request)
 
     if resp['www-authenticate']
-        uri = URI.parse "http://#{$dut}/json_rpc"
+        uri = URI.parse "http://#{$dut}/json_spec"
         uri.user = $dut_user
         uri.password = $dut_pass
         digest_auth = Net::HTTP::DigestAuth.new
