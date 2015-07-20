@@ -1,0 +1,132 @@
+#!/usr/bin/env ruby
+
+require "uri"
+require 'logger'
+require 'webrick'
+require 'optparse'
+require "net/http"
+require 'net/http/digest_auth'
+
+$options = {}
+OptionParser.new do |opts|
+    opts.banner = """Usage: proxy [OPTIONS]
+
+The proxy scripts implements a simple web server that can serve static content
+from a global HTML folder, and forward requests to /json_spec and /json_rpc to a
+specified address.
+
+The purpose of this is to allow web development for the JSON-RPC interface on a
+normal PC without having to upload new conetent to the device at every
+iteration.
+
+"""
+
+    opts.on("-d", "--dut ADDRESS", "Address to forward json requests to") do |v|
+        $options[:dut] = v
+    end
+
+    opts.on("-u", "--dut-username USERNAME", "Username to use when authenticating") do |v|
+        $options[:user] = v
+    end
+
+    opts.on("-p", "--dut-password PASSWORD", "Password to use when authenticating") do |v|
+        $options[:pass] = v
+    end
+
+    opts.on("-l", "--listin-port PORT", "TCP port to listen on") do |v|
+        $options[:port] = v.to_i
+    end
+
+    opts.on("-r", "--html-root ", "Folder to serve static HTML from") do |v|
+        $options[:root] = v.to_i
+    end
+
+    opts.on_tail("-h", "--help", "Show this message") do
+        puts opts
+        exit
+    end
+end.parse!
+
+if $options[:dut].nil?
+    puts "No dut specified. Please add '--dut ADDRESS'"
+    exit
+end
+
+$options[:port] = 8000 if $options[:port].nil?
+$options[:pass] = "" if $options[:pass].nil?
+$options[:user] = "admin" if $options[:admin].nil?
+$options[:root] = "~/public_html" if $options[:root].nil?
+
+$l = Logger.new(STDOUT)
+$l.level = Logger::INFO
+
+logger_webbrick = Logger.new(STDOUT)
+logger_webbrick.level = Logger::WARN
+
+root = File.expand_path $options[:root]
+server = WEBrick::HTTPServer.new :Port => $options[:port], :DocumentRoot => root, :AccessLog => [], :Logger => logger_webbrick, :BindAddress => "0.0.0.0"
+
+def forward req, res
+    r = nil
+
+    headers = {}
+    req.header.each do |k, v|
+        headers[k] = v.join(", ") unless ["Content-Length", "Connection", "Authorization"].include?(k)
+    end
+
+    case req.request_method
+    when "GET"
+        r = Net::HTTPGenericRequest.new("GET", false, true, req.path, headers)
+        $l.info("REQUEST GET: #{req.path}")
+    when "POST"
+        r = Net::HTTPGenericRequest.new("POST", true, true, req.path, headers)
+        r.body = req.body
+        $l.info("REQUEST POST: #{req.path} -- #{r.body}")
+    else
+        raise "Not implemented"
+    end
+
+    http = Net::HTTP.new("10.99.10.10", 80)
+    r.basic_auth 'admin', ''
+    response = http.request(r);
+
+    if response['www-authenticate']
+        uri = URI.parse "http://10.99.10.10#{r.path}"
+        uri.user = 'admin'
+        uri.password = ''
+        digest_auth = Net::HTTP::DigestAuth.new
+        auth = digest_auth.auth_header(uri, response['www-authenticate'], req.request_method)
+        r.delete('Authorization')
+        r.add_field 'Authorization', auth
+        response = http.request(r);
+    end
+
+    response.each_header do |k, v|
+        res[k] = v unless ["Content-Length", "Connection", "Authorization"].include?(k)
+    end
+
+    res.status = response.code
+    res.request_http_version = response.http_version
+
+    case req.request_method
+    when "GET"
+        res.body = response.body
+        $l.info("RESPONSE GET: #{res.body}")
+    when "POST"
+        res.body = response.body
+        $l.info("RESPONSE POST: #{res.body}")
+    else
+        raise "Not implemented"
+    end
+
+end
+
+server.mount_proc '/json_rpc' do |req, res| forward(req, res) end
+server.mount_proc '/json_spec' do |req, res| forward(req, res) end
+
+trap 'INT' do server.shutdown end
+trap 'TERM' do server.shutdown end
+
+$l.info "Starting HTML server on port #{$options[:port]}, forwarding to DUT at: #{$options[:dut]}, static html in: #{$options[:root]}"
+server.start
+
