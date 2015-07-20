@@ -4,6 +4,7 @@ require 'net/http'
 require 'uri'
 require 'json'
 require 'optparse'
+require 'net/http/digest_auth'
 
 $dut = nil
 $dut_user = "admin"
@@ -233,7 +234,20 @@ def http_post_request body
     request.basic_auth $dut_user, $dut_pass
     request.content_type = 'application/json'
     request.body = body
-    http.request(request).body
+    resp = http.request(request)
+
+    if resp['www-authenticate']
+        uri = URI.parse "http://#{$dut}/json_rpc"
+        uri.user = $dut_user
+        uri.password = $dut_pass
+        digest_auth = Net::HTTP::DigestAuth.new
+        auth = digest_auth.auth_header(uri, resp['www-authenticate'], "POST")
+        request.delete('Authorization')
+        request.add_field 'Authorization', auth
+        resp = http.request(request);
+    end
+
+    return resp.body
 end
 
 def download_spec host
@@ -242,7 +256,20 @@ def download_spec host
     request = Net::HTTP::Get.new("/json_spec")
     request.basic_auth $dut_user, $dut_pass
     request.content_type = 'application/json'
-    return JSON.parse(http.request(request).body)
+    resp = http.request(request)
+
+    if resp['www-authenticate']
+        uri = URI.parse "http://#{$dut}/json_rpc"
+        uri.user = $dut_user
+        uri.password = $dut_pass
+        digest_auth = Net::HTTP::DigestAuth.new
+        auth = digest_auth.auth_header(uri, resp['www-authenticate'], "GET")
+        request.delete('Authorization')
+        request.add_field 'Authorization', auth
+        resp = http.request(request);
+    end
+
+    return JSON.parse(resp.body)
 end
 
 def get_spec args
