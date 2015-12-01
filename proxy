@@ -38,7 +38,7 @@ iteration.
     end
 
     opts.on("-r", "--html-root ", "Folder to serve static HTML from") do |v|
-        $options[:root] = v.to_i
+        $options[:root] = v
     end
 
     opts.on_tail("-h", "--help", "Show this message") do
@@ -71,7 +71,7 @@ def forward req, res
 
     headers = {}
     req.header.each do |k, v|
-        headers[k] = v.join(", ") unless ["Content-Length", "Connection", "Authorization"].include?(k)
+        headers[k] = v.join(", ") unless ["content-Length", "connection", "authorization", "host", "referer"].include?(k.downcase)
     end
 
     case req.request_method
