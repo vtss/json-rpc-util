@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 
 require 'net/http'
+require 'net/https'
 require 'uri'
 require 'json'
 require 'optparse'
@@ -9,6 +10,7 @@ require 'net/http/digest_auth'
 $dut = nil
 $dut_user = "admin"
 $dut_pass = ""
+$dut_ssl = false
 $spec_file = nil
 
 class ArrayCollaps
@@ -229,22 +231,34 @@ def print x
 end
 
 def http_post_request body
-    http = Net::HTTP.start($dut, 80)
-    request = Net::HTTP::Post.new("/json_rpc")
-    request.basic_auth $dut_user, $dut_pass
-    request.content_type = 'application/json'
-    request.body = body
-    resp = http.request(request)
+    if $dut_ssl
+        uri = URI.parse "https://#{$dut}/json_spec"
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true
+        http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+        request = Net::HTTP::Post.new("/json_rpc")
+        request.basic_auth $dut_user, $dut_pass
+        request.content_type = 'application/json'
+        request.body = body
+        resp = http.request(request)
+    else
+        http = Net::HTTP.start($dut, 80)
+        request = Net::HTTP::Post.new("/json_rpc")
+        request.basic_auth $dut_user, $dut_pass
+        request.content_type = 'application/json'
+        request.body = body
+        resp = http.request(request)
 
-    if resp['www-authenticate']
-        uri = URI.parse "http://#{$dut}/json_rpc"
-        uri.user = $dut_user
-        uri.password = $dut_pass
-        digest_auth = Net::HTTP::DigestAuth.new
-        auth = digest_auth.auth_header(uri, resp['www-authenticate'], "POST")
-        request.delete('Authorization')
-        request.add_field 'Authorization', auth
-        resp = http.request(request);
+        if resp['www-authenticate']
+            uri = URI.parse "http://#{$dut}/json_rpc"
+            uri.user = $dut_user
+            uri.password = $dut_pass
+            digest_auth = Net::HTTP::DigestAuth.new
+            auth = digest_auth.auth_header(uri, resp['www-authenticate'], "POST")
+            request.delete('Authorization')
+            request.add_field 'Authorization', auth
+            resp = http.request(request);
+        end
     end
 
     return resp.body
@@ -252,21 +266,34 @@ end
 
 def download_spec host
     puts "Downloading spec file"
-    http = Net::HTTP.start($dut, 80)
-    request = Net::HTTP::Get.new("/json_spec")
-    request.basic_auth $dut_user, $dut_pass
-    request.content_type = 'application/json'
-    resp = http.request(request)
+    if $dut_ssl
+        uri = URI.parse "https://#{$dut}/json_spec"
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = true
+        http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+        request = Net::HTTP::Get.new("/json_spec")
+        request.basic_auth $dut_user, $dut_pass
+        request.content_type = 'application/json'
+        resp = http.request(request)
 
-    if resp['www-authenticate']
-        uri = URI.parse "http://#{$dut}/json_spec"
-        uri.user = $dut_user
-        uri.password = $dut_pass
-        digest_auth = Net::HTTP::DigestAuth.new
-        auth = digest_auth.auth_header(uri, resp['www-authenticate'], "GET")
-        request.delete('Authorization')
-        request.add_field 'Authorization', auth
-        resp = http.request(request);
+    else
+        http = Net::HTTP.start($dut, 80)
+        request = Net::HTTP::Get.new("/json_spec")
+        request.basic_auth $dut_user, $dut_pass
+        request.content_type = 'application/json'
+        resp = http.request(request)
+
+        if resp['www-authenticate']
+            uri = URI.parse "http://#{$dut}/json_spec"
+            uri.user = $dut_user
+            uri.password = $dut_pass
+            digest_auth = Net::HTTP::DigestAuth.new
+            auth = digest_auth.auth_header(uri, resp['www-authenticate'], "GET")
+            request.delete('Authorization')
+            request.add_field 'Authorization', auth
+            resp = http.request(request);
+        end
+
     end
 
     return JSON.parse(resp.body)
@@ -469,6 +496,10 @@ global = OptionParser.new do |opts|
         $dut_pass = a
     end
 
+    opts.on("--ssl", "Use ssl/https connection") do
+        $dut_ssl = true
+    end
+
     opts.on("--spec-cache=[SPEC-FILE]", "Use a cached spec file. If no file is specified it will try use ~/.vtss-json-rpc.spec") do |s|
         if s.nil?
             $spec_file = "~/.vtss-json-rpc.spec"
@@ -480,7 +511,6 @@ global = OptionParser.new do |opts|
     opts.on("-c", "Use ~/.vtss-json-rpc.spec as cached spec file") do |s|
         $spec_file = "~/.vtss-json-rpc.spec"
     end
-
 
     opts.on("-h", "--help", "Show this message") do
         puts opts
