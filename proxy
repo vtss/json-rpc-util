@@ -6,6 +6,7 @@ require 'webrick'
 require 'optparse'
 require "net/http"
 require 'net/http/digest_auth'
+require 'pp'
 
 $options = {}
 OptionParser.new do |opts|
@@ -41,6 +42,10 @@ iteration.
         $options[:root] = v
     end
 
+    opts.on("--ssl", "Use ssl/https connection") do
+        $options[:ssl] = true
+    end
+
     opts.on_tail("-h", "--help", "Show this message") do
         puts opts
         exit
@@ -56,6 +61,7 @@ $options[:port] = 8000 if $options[:port].nil?
 $options[:pass] = "" if $options[:pass].nil?
 $options[:user] = "admin" if $options[:admin].nil?
 $options[:root] = "~/public_html" if $options[:root].nil?
+$options[:ssl]  = false if $options[:ssl].nil?
 
 $l = Logger.new(STDOUT)
 $l.level = Logger::INFO
@@ -85,9 +91,18 @@ def forward req, res
     else
         raise "Not implemented"
     end
+    http = nil
+    if $options[:ssl]
+        uri = URI.parse "https://#{$options[:dut]}"
+        http = Net::HTTP.new(uri.host, uri.port)
+        http.use_ssl = $options[:ssl]
+        http.verify_mode = OpenSSL::SSL::VERIFY_NONE
+    else
+        uri = URI.parse "http://#{$options[:dut]}"
+        http = Net::HTTP.new(uri.host, uri.port)
+    end
 
-    http = Net::HTTP.new($options[:dut], 80)
-    r.basic_auth 'admin', ''
+    r.basic_auth $options[:user], $options[:pass]
     response = http.request(r);
 
     if response['www-authenticate']
