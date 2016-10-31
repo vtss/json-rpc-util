@@ -12,6 +12,7 @@ $dut_user = "admin"
 $dut_pass = ""
 $dut_ssl = false
 $spec_file = nil
+$spec_name = "json_spec"
 
 class ArrayCollaps
     def initialize
@@ -265,26 +266,27 @@ def http_post_request body
 end
 
 def download_spec host
-    puts "Downloading spec file"
+    puts "Downloading spec #{$spec_name} to file"
+
     if $dut_ssl
-        uri = URI.parse "https://#{$dut}/json_spec"
+        uri = URI.parse "https://#{$dut}/#{$spec_name}"
         http = Net::HTTP.new(uri.host, uri.port)
         http.use_ssl = true
         http.verify_mode = OpenSSL::SSL::VERIFY_NONE
-        request = Net::HTTP::Get.new("/json_spec")
+        request = Net::HTTP::Get.new("/#{$spec_name}")
         request.basic_auth $dut_user, $dut_pass
         request.content_type = 'application/json'
         resp = http.request(request)
 
     else
         http = Net::HTTP.start($dut, 80)
-        request = Net::HTTP::Get.new("/json_spec")
+        request = Net::HTTP::Get.new("/#{$spec_name}")
         request.basic_auth $dut_user, $dut_pass
         request.content_type = 'application/json'
         resp = http.request(request)
 
         if resp['www-authenticate']
-            uri = URI.parse "http://#{$dut}/json_spec"
+            uri = URI.parse "http://#{$dut}/#{$spec_name}"
             uri.user = $dut_user
             uri.password = $dut_pass
             digest_auth = Net::HTTP::DigestAuth.new
@@ -498,6 +500,14 @@ global = OptionParser.new do |opts|
 
     opts.on("--ssl", "Use ssl/https connection") do
         $dut_ssl = true
+    end
+
+    opts.on("--spec=[SPEC-NAME]", "Can be \"json_spec\" or \"json_spec_target_specific\"") do |sn|
+        if sn.nil?
+            $spec_name = "json_spec"
+        else
+            $spec_name = sn
+        end
     end
 
     opts.on("--spec-cache=[SPEC-FILE]", "Use a cached spec file. If no file is specified it will try use ~/.vtss-json-rpc.spec") do |s|
