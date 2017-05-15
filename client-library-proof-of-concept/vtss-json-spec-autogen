@@ -44,6 +44,7 @@ TYPE_REMAP = {
     "vtss_ipv6_network_t"      => "std::string",
     "vtss_ipv6_t"              => "std::string",
     "vtss_appl_vcl_proto_t"    => "std::string",
+    "string"                   => "std::string",
 
 }
 
@@ -136,6 +137,7 @@ typedef std::vector<vtss_ifindex_t>  vtss_port_list_stackable_t;
 typedef std::vector<uint32_t> vtss_snmp_oid_t;
 typedef uint16_t vtss_vid_t;
 typedef std::vector<vtss_vid_t>  vtss_vid_list_t;
+typedef std::string binary_buffer;
 
 Json::Value serialize(const vtss_mac_t &x);
 Json::Value serialize(const std::vector<uint16_t> &x);
@@ -153,6 +155,7 @@ Json::Value serialize(uint16_t x);
 Json::Value serialize(uint32_t x);
 Json::Value serialize(uint64_t x);
 Json::Value serialize(time_t x);
+Json::Value serialize(binary_buffer x);
 
 // General purpose RPC caller //////////////////////////////////////////////////
 template <typename... Args>
@@ -369,7 +372,6 @@ def cxx_member_name m
         return "_#{m}"
     end
 
-    m = m[0, 1].downcase + m[1..-1] 
     m = m.gsub(/-/, "_")
     return m
 end

@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
     std::map<std::string, vtss_appl_port_mib_status_t> all_ports;
     vtss_port_status_get(&all_ports);
     for (const auto &p : all_ports)
-        std::cout << p.first << " is " << (p.second.link ? "up" : "down") << std::endl;
+        std::cout << p.first << " is " << (p.second.Link ? "up" : "down") << std::endl;
 
     // Access a single port
     vtss_appl_port_mib_status_t s;

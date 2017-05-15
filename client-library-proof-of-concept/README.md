@@ -20,9 +20,9 @@ Start by cloning the project, notice that this sub-project depends on some
 external projects, and it is therefor required to fetch the submodules as well
 
     $ git clone https://github.com/vtss/json-rpc-util.git
+    $ cd json-rpc-util/client-library-proof-of-concept
     $ git submodule init
     $ git submodule update
-    $ cd json-rpc-util/client-library-proof-of-concept
 
 Build the project
 

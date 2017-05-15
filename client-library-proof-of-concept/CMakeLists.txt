@@ -17,11 +17,18 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
 add_library(restclient-cpp ./restclient-cpp/source/restclient.cpp)
 
+# ADD_CUSTOM_COMMAND(
+#     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/vtss-client.cxx ${CMAKE_CURRENT_BINARY_DIR}/vtss-client.hxx
+#     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/vtss-json-spec-autogen ${CMAKE_CURRENT_SOURCE_DIR}/vtss-json-rpc-example.spec
+#     DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/vtss-json-spec-autogen ${CMAKE_CURRENT_SOURCE_DIR}/vtss-json-rpc-example.spec
+# )
+
 ADD_CUSTOM_COMMAND(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/vtss-client.cxx ${CMAKE_CURRENT_BINARY_DIR}/vtss-client.hxx
-    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/vtss-json-spec-autogen ${CMAKE_CURRENT_SOURCE_DIR}/vtss-json-rpc-example.spec
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/vtss-json-spec-autogen ${CMAKE_CURRENT_SOURCE_DIR}/vtss-json-rpc-example.spec
+    COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/vtss-json-spec-autogen ${CMAKE_CURRENT_SOURCE_DIR}/Serval-TxRefNID-json.spec
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/vtss-json-spec-autogen ${CMAKE_CURRENT_SOURCE_DIR}/Serval-TxRefNID-json.spec
 )
+
 
 add_library(vtss-client SHARED ${CMAKE_CURRENT_BINARY_DIR}/vtss-client.cxx)
 #target_link_libraries(vtss-client restclient-cpp jsoncpp_lib_static curl)
