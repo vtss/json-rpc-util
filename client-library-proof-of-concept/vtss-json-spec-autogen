@@ -38,11 +38,11 @@ TYPE_REMAP = {
     "vtss_appl_password_t"     => "std::string",
     "vtss_ifindex_t"           => "std::string",
     "vtss_inet_address_t"      => "std::string",
-    "vtss_ip_addr_t"           => "std::string",
-    "vtss_ipv4_network_t"      => "std::string",
-    "vtss_ipv4_t"              => "std::string",
-    "vtss_ipv6_network_t"      => "std::string",
-    "vtss_ipv6_t"              => "std::string",
+    "mesa_ip_addr_t"           => "std::string",
+    "mesa_ipv4_network_t"      => "std::string",
+    "mesa_ipv4_t"              => "std::string",
+    "mesa_ipv6_network_t"      => "std::string",
+    "mesa_ipv6_t"              => "std::string",
     "vtss_appl_vcl_proto_t"    => "std::string",
     "string"                   => "std::string",
 
@@ -117,11 +117,11 @@ extern std::string uri_json_rpc;
 struct vtss_appl_evc_mpls_tp_pw_conf_t {};  // todo
 struct vtss_appl_json_rpc_inventory_t {};  // todo
 
-struct vtss_mac_t {
+struct mesa_mac_t {
     unsigned char addr[6];
 };
 
-inline bool operator<(const vtss_mac_t &a, const vtss_mac_t &b) {
+inline bool operator<(const mesa_mac_t &a, const mesa_mac_t &b) {
     if (a.addr[0] != b.addr[0]) return a.addr[0] < b.addr[0];
     if (a.addr[1] != b.addr[1]) return a.addr[1] < b.addr[1];
     if (a.addr[2] != b.addr[2]) return a.addr[2] < b.addr[2];
@@ -135,11 +135,12 @@ typedef int vtss_rc;
 typedef std::string vtss_ifindex_t;
 typedef std::vector<vtss_ifindex_t>  vtss_port_list_stackable_t;
 typedef std::vector<uint32_t> vtss_snmp_oid_t;
-typedef uint16_t vtss_vid_t;
-typedef std::vector<vtss_vid_t>  vtss_vid_list_t;
+typedef uint16_t mesa_vid_t;
+typedef std::vector<mesa_vid_t>  vtss_vid_list_t;
 typedef std::string binary_buffer;
+typedef int int32e_9_t;
 
-Json::Value serialize(const vtss_mac_t &x);
+Json::Value serialize(const mesa_mac_t &x);
 Json::Value serialize(const std::vector<uint16_t> &x);
 Json::Value serialize(const std::vector<uint32_t> &x);
 Json::Value serialize(const std::vector<std::string> &x);
@@ -211,7 +212,7 @@ Json::Value vtss_json_rpc_call(const std::string &method, const Args &... args) 
 inline Json::Value serialize(bool x) { return Json::Value(x); }
 inline Json::Value serialize(const char *x) { return Json::Value(x); }
 
-inline Json::Value serialize(const vtss_mac_t &x) {
+inline Json::Value serialize(const mesa_mac_t &x) {
     throw std::runtime_error("not implemented");
     return Json::Value("00:00:00:00:00:00"); // TODO
 }
@@ -256,7 +257,7 @@ inline Json::Value serialize(uint32_t x) { return Json::Value(x); }
 inline Json::Value serialize(uint64_t x) { return Json::Value((Json::Value::UInt64)x); }
 
 
-inline void parse(const Json::Value &v, vtss_mac_t &x) {
+inline void parse(const Json::Value &v, mesa_mac_t &x) {
     throw std::runtime_error("not implemented");
 }
 

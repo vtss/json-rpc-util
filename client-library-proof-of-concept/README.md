@@ -16,6 +16,10 @@ functions.
 How to get started
 ------------------
 
+In order to compile the code you need 'libcurl-dev'. Install by:
+
+    $ sudo apt-get install libcurl-dev
+
 Start by cloning the project, notice that this sub-project depends on some
 external projects, and it is therefor required to fetch the submodules as well
 
