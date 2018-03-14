@@ -732,7 +732,7 @@ spec["methods"].each do |m|
             end
         else
             impl.puts "    if (!v[\"result\"].isArray()) throw std::runtime_error(\"Result is not an array\");"
-            impl.puts "    if (!v[\"result\"].size() != #{m["result"].size}) throw std::runtime_error(\"Unexpected result count\");"
+            impl.puts "    if (v[\"result\"].size() != #{m["result"].size}) throw std::runtime_error(\"Unexpected result count\");"
             impl.puts ""
 
             i = 0;
