@@ -138,6 +138,11 @@ end
 
 server.mount_proc '/json_rpc' do |req, res| forward(req, res) end
 server.mount_proc '/json_spec' do |req, res| forward(req, res) end
+server.mount_proc '/navbar.htm' do |req, res| forward(req, res) end
+server.mount_proc '/lib/config.js' do |req, res| forward(req, res) end
+server.mount_proc '/lib/navbarupdate.js' do |req, res| forward(req, res) end
+server.mount_proc '/config' do |req, res| forward(req, res) end
+server.mount_proc '/stat' do |req, res| forward(req, res) end
 
 trap 'INT' do server.shutdown end
 trap 'TERM' do server.shutdown end
